@@ -7,7 +7,7 @@ try:
 except:
  print("Either the JSON or simplejson module needs to be installed. Data is passed from Firefox to Python using the JSON format.")
  sys.exit(1)
-dbg=0
+dbg=2
 dbgl=[]
 from utils import log
 true=True
@@ -440,6 +440,8 @@ gBrowser.tabContainer.removeEventListener("TabClose", this, false);
 },
 
 handleEvent:function(aEvent) {
+//this function captures tabSelect, tabOpen, and tabClose.
+//If the event is a tabOpen or tabClose, we want to add this listener to or remove it from the indicated tab.
 if(aEvent.type=="TabSelect")
 {
 try{
@@ -545,6 +547,14 @@ aWebProgress.removeProgressListener(this);
 repl.web_progress_listener.init();
 repl.killers.push([repl.web_progress_listener,repl.web_progress_listener.uninit]);
 
+repl.readyStateNotify=function(e){
+repl.print({"m":"e","t":"readyState","a":[repl.justAddMap(e)]});
+return 0;
+}
+repl.pageShowNotify=function(e){
+repl.print({"m":"e","t":"pageShow","a":[repl.justAddMap(e)]});
+return 0;
+}
 repl.windowGuiKiller=
 {
 obs:null,
@@ -557,6 +567,18 @@ var wo;
 aSubject.QueryInterface(Ci.nsIDOMWindow);
 if(aSubject.top==aSubject)
 {
+try
+{
+aSubject.addEventListener("pageshow",repl.pageShowNotify,0);
+} catch(e) {
+repl.print({"m":"w","a":[e.toString()]});
+}
+try
+{
+aSubject.document.addEventListener("readystatechange",repl.readyStateNotify,1);
+} catch(e) {
+repl.print({"m":"w","a":[e.toString()]});
+}
 try
 {
 repl.mutationObsObj.add(aSubject);

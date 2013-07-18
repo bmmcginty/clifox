@@ -194,8 +194,15 @@ jsRoot points to the root class of js
  def onStateChangeAll(self,e):
   self.events.append(e)
 
+ def readyState(self,e):
+  self.restoreWindow(self.page)
+
+ def pageShow(self,e):
+  self.restoreWindow(self.page)
+
  def onStateChange(self,e):
   """Ignore the first onStateChange called on the about:blank document"""
+  return
 #  old=self.dom.document.ref.id
 #  self.dom.document.ref.jsrefresh()
 #  if self.dom.document.ref.id!=old:

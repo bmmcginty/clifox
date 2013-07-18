@@ -1,5 +1,11 @@
 import os,traceback
 import StringIO as stringio
+def trydo(func,*args):
+ try:
+  return func(*args)
+ except:
+  return None
+
 def Filename(fn="",root=None):
  if not root:
   root=os.path.expanduser("~/.clifox/")
