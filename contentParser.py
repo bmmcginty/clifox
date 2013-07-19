@@ -64,7 +64,7 @@ This could be used, for example, to require new lines after headings."""
    self.endFuncCache[item.nodeName]=x
    return x
 
- def parse(self,start=0,end=-1):
+ def parse(self,start=0,end=-1,y=None,x=None,update=0):
   """parse the supplied node list and return the result
 result is returned as {line:[[columnStart,lineNodeText,node],...]}
 columnStart shows where the text starts on each line.
@@ -77,10 +77,12 @@ Text is wrapped, and ends for each line at columnStart+len(lineNodeText).
   open=[]
   skip=-1
   idx=-1
-  self.y=0
-  self.x=0
+  self.y=0 if y==None else y
+  self.x=0 if x==None else x
   for i in self.lst:
    idx+=1
+   if idx==end and update==1:
+    break
 #when skip is posative, we decrement skip by 1 and continue this comments pattern until skip is 0
 #our goal is to skip a certain number of children
 #we have heading,link,text; link says skip children; skip=1; skip=1 to skip=0; continue; we've passed the text leaf 
@@ -112,12 +114,24 @@ Text is wrapped, and ends for each line at columnStart+len(lineNodeText).
     l=new.pop(0)
     if not self.ret.get(self.y,None):
      self.ret[self.y]=[]
-    self.ret[self.y].append((self.x,l,self.lst[idx]))
+    if update==1:
+     if [i for i in self.ret[self.y] if i[0]>self.x and len(l)+self.x>i[0]]:
+      self.shiftDisplayDownOneLine(self.y)
+      self.ret[self.y].append((self.x,l,self.lst[idx]))
+     else:
+      ins=len([i for i in self.ret[self.y] if i[0]<=self.x])
+      self.ret[self.y].insert(ins,(self.x,l,self.lst[idx]))
+    else:
+     self.ret[self.y].append((self.x,l,self.lst[idx]))
     self.x+=len(l)
     if new:
-     log("newLine from wrap")
      self.y+=1; self.x=0
   return self.ret
+
+ def shiftDisplayDownOneLine(self,y):
+  for i in xrange(len(self.ret),y-1,-1):
+   self.ret[i]=self.ret[i-1]
+  self.ret[y]=[]
 
  def getChildCount(self,idx):
   """return the number of children below the supplied index"""
@@ -140,13 +154,38 @@ insert and parse a chunk of new nodes.
 assume nodes[0] is a node currently in self.lst
 """
   try:
-   idx=self.index(nodes[0])
+   idx=self.lst.index(nodes[0])
   except Exception,e:
    raise Exception("given node is not in index")
+  num=self.lst[idx].num
+  for i in nodes:
+   i.num+=num
   old=self.getChildCount(idx)
-  [self.lst.pop(idx) for _ in range(old+1)]
+  oldNodes=[self.lst.pop(idx) for _ in range(old+1)]
+  items=self.ret.items()
+  o=oldNodes[0]
+  try:
+   self.lst[idx]
+   more=1
+  except:
+   more=0
+  for y in self.ret:
+   for x in self.ret[y]:
+    log("check:",x[2],o)
+    if x[2]==o:
+     oldPos=(y,x)
+    if more and x[2]==self.lst[idx][2]:
+     existingPos=(y,x)
+  self.removeDisplayNodes(oldNodes,oldPos[0],existingPos[0] if more else None)
   [self.lst.insert(idx,i) for i in nodes[::-1]]
-  self.parse()
+  return self.parse(start=idx,end=idx+len(nodes)+1,update=1,y=oldPos[0],x=oldPos[1][0])
+
+ def removeDisplayNodes(self,nodes,y1,y2):
+  if y2==None: y2=len(self.ret)
+  for y in self.ret:
+   if y>=y1 and y<=y2:
+    d=self.ret[y]
+    self.ret[y]=[i for i in d if i not in nodes]
 
  def getChildren(self,i):
   """returns all children below the supplied index

@@ -295,8 +295,12 @@ class gui(forms):
 
  def iterNodes(self,root):
   self.js.tmp=root
-  lc=[]
   res=self.js.ref.eval("repl.getDocJson(tmp)")[0]
+  return self.makeNodeObjs(res)
+
+ def makeNodeObjs(self,res):
+  log("objs:",res)
+  lc=[]
   ii=-1
   jm=self.js.ref.map
   jr=self.js.ref.rMap
@@ -388,8 +392,8 @@ class gui(forms):
   self.dom.document.ref.vars['parentNode']=None
   try:
    nodes=self.iterNodes(self.dom.document)
-   p=contentParser.htmlParser(nodes)
-   self._display=p.parse()
+   self.parser=contentParser.htmlParser(nodes)
+   self._display=self.parser.parse()
    self.numLines=max(self._display.keys())
   except Exception,e:
    utils.generate_error_report()
@@ -426,6 +430,33 @@ class gui(forms):
   rootNode=result.root
   return self.gTree([("/",rootNode)],js=self.js,treeview="bookmarkTree")
 #  return rootNode
+
+ def updateScreen(self):
+  yx=self.screen.getyx()
+  pos=self.getScreenAbsolutePosition(screenNum=self.screenNum,y=self.screenPos)
+  y=self.screenPos
+  pos-=y
+  absoluteY=pos
+  low,high=absoluteY,absoluteY+self.maxy
+  yW=0
+  while low<=high:
+   elems=self._display.get(low,[])
+   t="".join([i[1] for i in elems])
+   ot=self.getLineText(yW).strip()
+   if t.strip()!=ot:
+    try:
+     s=" "*(len(t)-self.maxx)
+     self.screen.addstr(yW,0,t+s)
+    except:
+     self.screen.addstr(yW,0," "*self.maxx)
+   low+=1
+   yW+=1
+#  self.screenPos,self.screenPosX=yx
+#  self.screenNum=screenNum
+  self.screen.move(yx[0],yx[1])
+  self.screen.refresh()
+  self.onFocus()
+  self.pagePosition()
 
  def showScreen(self,screenNum=None,y=None,absoluteY=None,x=None,force=0):
   self.writeScreenCoordsToFile()

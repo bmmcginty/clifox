@@ -7,7 +7,7 @@ try:
 except:
  print("Either the JSON or simplejson module needs to be installed. Data is passed from Firefox to Python using the JSON format.")
  sys.exit(1)
-dbg=0
+dbg=2
 dbgl=[]
 from utils import log
 true=True
@@ -727,7 +727,8 @@ for(var i=0;i<records.length;i++)
 {
 if(t.indexOf(records[i].target)<0)
 {
-r.push(repl.getDocJson(records[i].target));
+repl.print({"m":"w","a":[repl.inMap(records[i].target).toString()]});
+r.push(repl.getDocJson(records[i].target,repl.addMap));
 t.push(records[i].target);
 }
 }

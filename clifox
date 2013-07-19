@@ -84,7 +84,7 @@ jsRoot points to the root class of js
   self.start_url=start_url
   self.codeHist=[]
   self.events=[]
-  self.local_vars="numLines,_display,nodes,nodes_flat,screenNum,screenPos,screenPosX,url".split(",")
+  self.local_vars="parser,numLines,_display,nodes,nodes_flat,screenNum,screenPos,screenPosX,url".split(",")
   self.jsQ=jsQ
   self.js=jsRoot
   self.keys=config.mainWindowKeys
@@ -170,6 +170,9 @@ jsRoot points to the root class of js
  def mutation(self,e):
   self.setStatus("")
   self.setStatus(str(len(e)))
+  for i in e:
+   self._display=self.parser.insertAndParse(self.makeNodeObjs(i))
+  self.updateScreen()
 
  def tabSelect(self,e):
   """firefox fires eventon tab switch"""
