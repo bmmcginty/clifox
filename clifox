@@ -137,6 +137,8 @@ jsRoot points to the root class of js
   self.local_vars="numLines,_display,nodes,nodes_flat,screenNum,screenPos,screenPosX,url".split(",")
   self.jsQ=jsQ
   self.js=jsRoot
+  self.save=[self.js.gBrowser,self.js.gBrowser.visibleTabs]
+  log(str(self.save))
   self.keys=config.mainWindowKeys
   self.windows=[]
   self.windowVars={}
@@ -192,7 +194,8 @@ jsRoot points to the root class of js
      self.updateStatus("No previous %s" % s)
 
  def onStateChangeAll(self,e):
-  self.events.append(e)
+  pass
+#self.events.append(e)
 
  def onStateChange(self,e):
   """Ignore the first onStateChange called on the about:blank document"""
@@ -249,10 +252,6 @@ jsRoot points to the root class of js
   if self.lastMessage!=m:
    self.setStatus(m)
    self.lastMessage=m
-
- def event(self,e):
-  """triggers on any event not covered above"""
-  self.setStatus(str(e))
 
  def pageRefreshData(self):
   """create visual layout of webpage data and place that representation on screen
@@ -933,9 +932,10 @@ length: the maximum length for this text entry (element.attr=maxlength is the co
    generate_error_report()
 
  def newWindow(self,url="about:blank"):
+  log("js:",self.js)
   p=self.js.gBrowser.addTab(url)
   p.url=url
-  self.moveWindow(id=self.js.Array.indexOf(self.js.gBrowser.visibleTabs,p))
+#  self.moveWindow(id=self.js.Array.indexOf(self.js.gBrowser.visibleTabs,p))
 
  def nextWindow(self):
   self.moveWindow(1)
@@ -995,7 +995,7 @@ length: the maximum length for this text entry (element.attr=maxlength is the co
     generate_error_report()
 
  def event(self,e):
-  self.events.append(e)
+#  self.events.append(e)
   if e.get("m","")=='w': return
 #  self.setStatus("event %s" % (e.get("t","noName"),))
 
@@ -1029,6 +1029,7 @@ def main2():
  quitFlag=0
  warnings.simplefilter("ignore")
  j,q=mozCom.initCliFox()
+ log("j:",j,type(j))
  curses.wrapper(ActiveWindow,jsQ=q,jsRoot=j,start_url=[i for i in sys.argv if ":" in i][0] if [i for i in sys.argv if ":" in i] else None)
 
 if __name__=='__main__':

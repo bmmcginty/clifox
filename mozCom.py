@@ -1,4 +1,4 @@
-import os,sys,select,socket,time,Queue,urllib
+import os,sys,select,socket,time,Queue,urllib,weakref
 try:
  try:
   import json
@@ -7,7 +7,7 @@ try:
 except:
  print("Either the JSON or simplejson module needs to be installed. Data is passed from Firefox to Python using the JSON format.")
  sys.exit(1)
-dbg=0
+dbg=2
 dbgl=[]
 from utils import log
 true=True
@@ -15,8 +15,12 @@ false=False
 null=None
 
 class JSClass(object):
- def __init__(self,name="",value="",id="",root=0,parent=None,type="object",q=None,vars={},hostname="localhost"):
-  self.ref=JSReference(name=name,value=value,id=id,root=root,parent=parent,type=type,q=q,vars=vars,hostname=hostname,proxy=self)
+ def __del__(self):
+  pass
+#  log("jsClass dying:",self.ref.id)
+
+ def __init__(self,name="",value="",id="",root=0,parentid=None,parent=None,type="object",q=None,vars={},hostname="localhost"):
+  self.ref=JSReference(name=name,value=value,id=id,root=root,parentid=parentid,parent=parent,type=type,q=q,vars=vars,hostname=hostname,proxy=weakref.proxy(self))
 #getattr/setattr
 #if x is ref, then do object.__method__(self,x)
 
@@ -69,8 +73,8 @@ class JSClass(object):
   if x in r.vars:
    return r.vars[x]
 #  print x
-  if r.root!=self and r.id not in r.map:
-   return r.parent[r.name][x]
+#  if r.root!=self and r.id not in r.map:
+#   return r.parent[r.name][x]
   if (r.id,x) in r.rMap:
    return r.rMap[(r.id,x)]
   d={"m":"g","a":[x],"i":r.id}
@@ -81,10 +85,10 @@ class JSClass(object):
 #   if r.vars: r.vars['x']=ret['a'][0]
    return ret['a'][0]
   if ret['a'][0]==None: return None
-  a=JSClass(name=x,root=r.root,parent=self,id=ret['i'],type=ret['t'],value=ret['a'][0])
+  if ret['t']=="undefined":
+   raise AttributeError("%s has no attribute %s" % (self.ref.name,str(ret['t']),))
+  a=JSClass(name=x,root=r.root,parentid=r.id,parent=weakref.proxy(self),id=ret['i'],type=ret['t'],value=ret['a'][0])
   ar=a.ref
-  if ar.type=="undefined":
-   raise AttributeError("%s has no attribute %s" % (self.ref.name,str(ar.name),))
   if ar.type in ["array","object","function"]:
    r.map[ar.id]=a
    r.rMap[(r.id,ar.name)]=a
@@ -97,10 +101,10 @@ class JSClass(object):
   if x in r.vars and override==0 and x.startswith("_"):
    r.vars[x]=y
    return y
-  name=x if type(x)!=JSClass else x.ref.name
+  name=x if not isinstance(x,JSClass) else x.ref.name
   y=[y] if type(y)!=list else y
-  ids=[i.ref.id for i in y if type(i)==JSClass]
-  a=[[i.ref.id,''] if type(i)==JSClass else i for i in y]
+  ids=[i.ref.id for i in y if isinstance(i,JSClass)]
+  a=[[i.ref.id,''] if isinstance(i,JSClass) else i for i in y]
   a.insert(0,name)
   d={"m":"s","a":a,"i":r.id}
   r.root.ref.send(d)
@@ -111,21 +115,21 @@ class JSClass(object):
    return ret['a'][0]
   if ret['t']=="undefined":
    raise AttributeError("%s has no attribute %s" % (self.ref.name,str(x),))
-  a=JSClass(name=x,root=r.root,parent=self,id=ret['i'],type=ret['t'],value=ret['a'][0])
+  a=JSClass(name=x,root=r.root,parentid=r.id,parent=weakref.proxy(self),id=ret['i'],type=ret['t'],value=ret['a'][0])
   ar=a.ref
   if ar.type in ["array","object","function"]:
    r.map[ar.id]=a
    r.rMap[(r.id,ar.name)]=a
-   if x in r.vars: r.vars[x]=a
+   if x in r.vars: r.vars[x]=weakref.proxy(a)
    return a
 
  def __call__(self,*a,**kw):
   r=self.ref
-  if r.root!=self and r.id not in r.root.ref.map:
+  if r.root!=weakref.proxy(self) and r.id not in r.root.ref.map:
    return r.parent[r.name](*a,**kw)
-  ids=[i.ref.id for i in a if type(i)==JSClass]
-  a=[[i.ref.id,''] if type(i)==JSClass else i for i in a]
-  d={"m":"c","a":[r.name,a],"i":r.parent.ref.id,"ids":ids}
+  ids=[i.ref.id for i in a if isinstance(i,JSClass)]
+  a=[[i.ref.id,''] if isinstance(i,JSClass) else i for i in a]
+  d={"m":"c","a":[r.name,a],"i":r.parentid,"ids":ids}
   r.root.ref.send(d)
   ret=r.root.ref.recv()
 #~~
@@ -133,7 +137,7 @@ class JSClass(object):
    return None
   if ret['t'] not in ("undefined","array","object","function"):
    return ret['a'][0]
-  a=JSClass(name=r.name+".result",root=r.root,parent=self,id=ret['i'],type=ret['t'],value=ret['a'][0])
+  a=JSClass(name=r.name+".result",root=r.root,parentid=r.id,parent=weakref.proxy(self),id=ret['i'],type=ret['t'],value=ret['a'][0])
   ar=a.ref
   if ar.type=="undefined":
    return None
@@ -143,8 +147,14 @@ class JSClass(object):
    r.rMap[(r.id,ar.name)]=a
    return a
 
-class JSReference(object):
- def __init__(self,name="",value="",id="",root=0,parent=None,type="object",q=None,vars={},hostname="localhost",proxy=None):
+class JSReference():
+ def __del__(self):
+  pass
+#  return log("jsref dying",self.id)
+#  log("del:",self.id)
+#self.root.ref.send({"M":"w","a":[self.id]})
+
+ def __init__(self,name="",value="",id="",root=0,parentid=None,parent=None,type="object",q=None,vars={},hostname="localhost",proxy=None):
   self.id=id
   self.idh=self.id.__hash__()
   self.proxy=proxy
@@ -152,14 +162,14 @@ class JSReference(object):
 # if root!=0 else self
   self.name=name
   self.value=value
+  self.parentid=parentid
   self.type=type
   self.parent=parent
   if root==0:
 #self.proxy:
    self.ldata={}
-   self.dlog=[]
-   self.map={}
-   self.rMap={}
+   self.map=weakref.WeakValueDictionary()
+   self.rMap=weakref.WeakValueDictionary()
    self.sock=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
    self.sock.connect((hostname,4242))
    self.data=""
@@ -179,7 +189,6 @@ class JSReference(object):
   while 1:
    if "\n" in self.data:
     ret,self.data=self.data.split("\n",1)
-    self.dlog.append(ret)
     if dbg>=1: dbgl.append("in:"+str(ret))
     if dbg>1: log(dbgl[-1])
 #error in deserialization?
@@ -238,7 +247,7 @@ class JSReference(object):
   name=o['a'][0]
   v=o['a'][1]
   if self.isIdRef(v):
-   m=JSClass(id=v[0],parent=p,name=o['a'][0],root=self.root)
+   m=JSClass(id=v[0],parent=weakref.proxy(p),name=o['a'][0],root=self.root)
   else:
    m=v
   p[name]=m
@@ -270,7 +279,10 @@ class JSReference(object):
  def jsrefresh(self):
   c=self
   if c.id in self.map: del self.map[c.id]
-  k=(c.parent.ref.id,c.name)
+  try:
+   k=(c.parent.ref.id,c.name)
+  except:
+   k=None
   if k in self.rMap:
    self.rMap.pop(k)
    l=[(id,name) for id,name in self.rMap if id==c.id]
