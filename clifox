@@ -935,7 +935,8 @@ length: the maximum length for this text entry (element.attr=maxlength is the co
   log("js:",self.js)
   p=self.js.gBrowser.addTab(url)
   p.url=url
-#  self.moveWindow(id=self.js.Array.indexOf(self.js.gBrowser.visibleTabs,p))
+  self.js.gBrowser.visibleTabs.ref.jsrefresh()
+  self.moveWindow(id=self.js.Array.indexOf(self.js.gBrowser.visibleTabs,p))
 
  def nextWindow(self):
   self.moveWindow(1)
