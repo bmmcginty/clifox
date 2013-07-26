@@ -208,6 +208,8 @@ jsRoot points to the root class of js
 #  self.page.linkedBrowser.ref.jsrefresh()
 #  self.dom=self.page.linkedBrowser.contentDocument.defaultView
 #  self.pageRefreshData()
+  if self.page in self.windowVars:
+   self.windowVars.pop(self.page)
   self.restoreWindow(self.page)
   if "youtube.com" in self.dom.location.host and "youtube.com/embed/" in self.dom.location.href:
    try:
@@ -1002,6 +1004,10 @@ length: the maximum length for this text entry (element.attr=maxlength is the co
 
  def key(self,k):
   self.setStatus("key %s invalid." % (str(k),))
+
+ def cleanKeys(self):
+  bad=[i for i in mozCom.odb.items() if i[1]==0]
+  self.js.ref.send({"m":"D","a":[bad]})
 
  def run(self):
   if not getattr(self,"page",None):
