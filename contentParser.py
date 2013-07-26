@@ -257,6 +257,14 @@ For instance, this would be used for a br element, where a line break is mandato
   if nm: c="["+nm+"] "+c
   return c
 
+ def form(self,idx):
+  self.fnl(idx)
+  return ''
+
+ def endForm(self,idx):
+  self.fnl(idx)
+  return ''
+
  def input(self,idx):
   nm=self.getInputName(idx)
   if nm==None:
@@ -270,6 +278,10 @@ For instance, this would be used for a br element, where a line break is mandato
   c=value
   if nm: c="["+nm+"] "+c
   return c
+
+ def endInput(self,idx):
+  self.fnl(idx)
+  return ''
 
  def inputHidden(self,idx):
   return None
