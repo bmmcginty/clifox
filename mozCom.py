@@ -14,12 +14,17 @@ true=True
 false=False
 null=None
 
+odb={}
 class JSClass(object):
  def __del__(self):
-  pass
+  odb[self.ref.id]-=1
+  if odb[self.ref.id]==0:
+   log("del:",self.ref.id,odb.get(self.ref.id,"null"))
+#  pass
 #  log("jsClass dying:",self.ref.id)
 
  def __init__(self,name="",value="",id="",root=0,parentid=None,parent=None,type="object",q=None,vars={},hostname="localhost"):
+  odb[id]=odb.get(id,0)+1
   self.ref=JSReference(name=name,value=value,id=id,root=root,parentid=parentid,parent=parent,type=type,q=q,vars=vars,hostname=hostname,proxy=weakref.proxy(self))
 #getattr/setattr
 #if x is ref, then do object.__method__(self,x)
@@ -37,11 +42,9 @@ class JSClass(object):
   return self.ref.idh
 
  def __cmp__(self,other):
-  to=type(other)
-  if to==JSReference:
+  if isinstance(other,JSReference):
    other=getattr(other,"proxy",None)
-   to=JSClass
-  if to==JSClass:
+  if isinstance(other,JSClass):
    oi=other.ref.id
    si=self.ref.id
    if oi==si: return 0

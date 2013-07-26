@@ -658,21 +658,25 @@ var ctx,obj;
 ctx=repl._hostContext;
 obj=JSON.parse(chunk);
 //d=delete
-if(obj.m=='dbg')
+if(obj.m=='D')
 {
-var id,ids;
-id=obj.a[0];
-ids=repl.findAllInMap(id);
+var ids;
+ids=obj.a[0];
 for(var i=ids.length-1;i>=0;i--)
 {
 var where;
-if(where=repl.mapObjList.indexOf(ids[i])>-1)
+where=repl.inMap(ids[i]);
+if(where>-1)
 {
-repl.mapObjList.pop(where);
 repl.mapIdList.pop(where);
-};
-delete repl.map[ids[i]];
-};
+repl.mapObjList.pop(where);
+}
+try
+{
+delete repl.map[ids[id]];
+} catch(e) {
+}
+}
 };
 //x=execute
 if(obj.m=='x')
