@@ -473,6 +473,9 @@ class gui(forms):
    self.js.gBrowser.removeCurrentTab()
   except:
    pass
+  self.js.gBrowser.visibleTabs.ref.jsrefresh()
+#  self.moveWindow(id=0)
+  self.restoreWindow(self.js.gBrowser.selectedTab)
 
  def searchPage(self,direction="forward"):
   pos=self.getScreenAbsolutePosition(self.screenNum,self.screenPos)
