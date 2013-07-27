@@ -1006,8 +1006,11 @@ length: the maximum length for this text entry (element.attr=maxlength is the co
   self.setStatus("key %s invalid." % (str(k),))
 
  def cleanKeys(self):
-  bad=[i for i in mozCom.odb.items() if i[1]==0]
+  bad=[i[0] for i in mozCom.odb.items() if i[1]==0]
+  mozCom.odb=dict([i for i in mozCom.odb.items() if i[1]>0])
   self.js.ref.send({"m":"D","a":[bad]})
+  time.sleep(0.05)
+  return self.js.repl.mapIdList.length
 
  def run(self):
   if not getattr(self,"page",None):

@@ -665,16 +665,15 @@ ids=obj.a[0];
 for(var i=ids.length-1;i>=0;i--)
 {
 var where;
-where=repl.inMap(ids[i]);
+where=repl.mapIdList.indexOf(ids[i]);
 if(where>-1)
 {
 repl.mapIdList.pop(where);
 repl.mapObjList.pop(where);
-}
-try
+if(repl.map[ids[i]])
 {
-delete repl.map[ids[id]];
-} catch(e) {
+repl.map[ids[i]]=null;
+}
 }
 }
 };
