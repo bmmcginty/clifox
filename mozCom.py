@@ -1,5 +1,6 @@
 import os,sys,select,socket,time,Queue,urllib
 import utils,configParser
+from utils import log
 try:
  try:
   try:
@@ -13,10 +14,10 @@ except:
  sys.exit(1)
 try:
  dbg=configParser.config.dbg
-except:
+except Exception,e:
+ log("e:",e)
  dbg=0
 dbgl=[]
-from utils import log
 true=True
 false=False
 null=None
@@ -185,11 +186,13 @@ class JSReference(object):
  def recv(self,delay=None):
   while 1:
    if "\n" in self.data:
+    if dbg>1:
+     log("data:",self.data)
     ret,self.data=self.data.split("\n",1)
 #    print ret
-    self.dlog.append(ret)
-    if dbg>=1: dbgl.append("in:"+str(ret))
-    if dbg>1: log(dbgl[-1])
+#    self.dlog.append(ret)
+    if dbg==1: dbgl.append("in:"+str(ret))
+    if dbg>1: log(str(ret))
 #error in deserialization?
     etime1=time.time()
     ret=json.loads(ret)

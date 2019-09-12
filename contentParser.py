@@ -69,25 +69,6 @@ supply a list of document elements to be rendered (e.g. from iterNodes)
    end=width
   return lines
  
- def itemFunc(self,item):
-  """returns the function for handling an element, or self.unknown"""
-  if item.nodeName in self.funcCache:
-   return self.funcCache[item.nodeName]
-  x=getattr(self,item.nodeName.lower().replace("#",""),self.unknown)
-  self.funcCache[item.nodeName]=x
-  return x
-
- def endItemFunc(self,item):
-  """returns the function for ending an element or self.endUnknown
-This could be used, for example, to require new lines after headings."""
-  try:
-   return self.endFuncCache[item.nodeName]
-  except:
-   n=item.nodeName
-   x=getattr(self,"end"+n[0].upper()+n[1:].lower().replace("#",""),self.endUnknown)
-   self.endFuncCache[item.nodeName]=x
-   return x
-
  def parse(self,start=0,end=-1):
   """parse the supplied node list and return the result
 result is returned as {line:[[columnStart,lineNodeText,node],...]}
@@ -189,6 +170,56 @@ assume nodes[0] is a node currently in self.lst
    i+=1
   return ret
 
+ def nl(self,idx):
+  """check (and insert if) there is need for a line break because of existing text on the current line."""
+  if self.needNewLine():
+   self.y+=1
+   self.x=0
+
+ def fnl(self,idx,force=0):
+  """insert a new line regardless of other elements on the current line.
+For instance, this would be used for a br element, where a line break is mandatory.
+"""
+  if self.x!=0 or force==1:
+   self.y+=1
+   self.x=0
+#  if self.y not in self.ret:
+#   self.ret[self.y]=[]
+#  self.ret[self.y].append((self.x,'',self.lst[idx]))
+
+ def getBlankLines(self,idx,maxCheck=2):
+  blank=0
+  y=self.y
+  while y>0:
+   if blank>maxCheck:
+    break
+   y-=1
+   t="".join([i[1].strip() for i in self.ret.get(y,[])])
+   if not t: blank+=1
+   if t: return blank
+  return blank
+
+
+class htmlParser(parser):
+ def itemFunc(self,item):
+  """returns the function for handling an element, or self.unknown"""
+  if item.nodeName in self.funcCache:
+   return self.funcCache[item.nodeName]
+  x=getattr(self,item.nodeName.lower().replace("#",""),self.unknown)
+  self.funcCache[item.nodeName]=x
+  return x
+
+ def endItemFunc(self,item):
+  """returns the function for ending an element or self.endUnknown
+This could be used, for example, to require new lines after headings."""
+  try:
+   return self.endFuncCache[item.nodeName]
+  except:
+   n=item.nodeName
+   x=getattr(self,"end"+n[0].upper()+n[1:].lower().replace("#",""),self.endUnknown)
+   self.endFuncCache[item.nodeName]=x
+   return x
+
  """This list holds the names of any elements that can be placed before other elements on a single line, regardless of the other elements types.
 Currently, only the LI, list item, tag is used here.
 This tag is so common and small that it can be placed before many other elements, such as links and buttons, without impacting the flow of a webpage.
@@ -214,24 +245,6 @@ for instance, this function would return false if one was scanning a line with a
    if t:
     return 1
   return 0
-
-class htmlParser(parser):
- def nl(self,idx):
-  """check (and insert if) there is need for a line break because of existing text on the current line."""
-  if self.needNewLine():
-   self.y+=1
-   self.x=0
-
- def fnl(self,idx,force=0):
-  """insert a new line regardless of other elements on the current line.
-For instance, this would be used for a br element, where a line break is mandatory.
-"""
-  if self.x!=0 or force==1:
-   self.y+=1
-   self.x=0
-#  if self.y not in self.ret:
-#   self.ret[self.y]=[]
-#  self.ret[self.y].append((self.x,'',self.lst[idx]))
 
  def iframe(self,idx):
   n=self.lst[idx]
@@ -469,18 +482,6 @@ For instance, this would be used for a br element, where a line break is mandato
   t="[*"+t+"] "
   return t
 
- def getBlankLines(self,idx,maxCheck=2):
-  blank=0
-  y=self.y
-  while y>0:
-   if blank>maxCheck:
-    break
-   y-=1
-   t="".join([i[1].strip() for i in self.ret.get(y,[])])
-   if not t: blank+=1
-   if t: return blank
-  return blank
-
  def hr(self,idx):
   return '-'*40
 
@@ -504,8 +505,139 @@ For instance, this would be used for a br element, where a line break is mandato
   return ''
 
 class accParser(parser):
+ newLineRoles=["link","heading","section","grouping","form","pushbutton","entry","listitem"]
+ sameLinePreformatted=["listitem"]
+ def needNewLine(self,y=None,x=None):
+  y=y if y else self.y
+  x=x if x else self.x
+  elems=self.ret.get(y,[])
+  log("accNewLine",y,x,elems)
+  if not x:
+   log("x at 0, returning 0")
+   return 0
+  if not elems:
+   log("no elems, returning 0")
+   return 0
+  elems=[i for i in elems if i[0]<x]
+  elems.reverse()
+  for i in elems:
+   t=i[1].strip()
+   if t and i[2].role in self.sameLinePreformatted:
+    return 0
+   if t:
+    return 1
+  return 0
+
+ def itemFunc(self,item):
+  """returns the function for handling an element, or self.unknown"""
+  if item.role in self.funcCache:
+   return self.funcCache[item.role]
+  x=getattr(self,item.role.lower().replace(" ","_"),self.unknown)
+  self.funcCache[item.role]=x
+  return x
+
+ def endItemFunc(self,item):
+  """returns the function for ending an element or self.endUnknown
+This could be used, for example, to require new lines after headings."""
+  try:
+   return self.endFuncCache[item.role]
+  except:
+   n=item.role
+   x=getattr(self,"end"+n[0].upper()+n[1:].lower().replace(" ","_"),self.endUnknown)
+   self.endFuncCache[item.role]=x
+   return x
+
+ def paragraph(self,idx):
+  i=self.lst[idx]
+  if i.parent.role in self.newLineRoles:
+   return ''
+  if self.getBlankLines(idx)<2:
+   self.fnl(idx)
+   self.fnl(idx)
+  return ''
+
+ def endParagraph(self,idx):
+  self.fnl(idx)
+  return ''
+
+ def grouping(self,idx):
+  return ''
+
+ def endGrouping(self,idx):
+  return ''
+
+ def heading(self,idx):
+  self.nl(idx)
+  return ''
+
+ def endHeading(self,idx):
+  self.fnl(idx)
+  return ''
+
+ def list(self,idx):
+  return ''
+
+ def endList(self,idx):
+  self.nl(idx)
+
+ def statictext(self,idx):
+  return self.lst[idx].text
+
+ def endStatictext(self,idx):
+  return ''
+
+ def listitem(self,idx):
+  self.fnl(idx)
+  return "*"
+
+ def endListitem(self,idx):
+  self.nl(idx)
+  return ''
+
+ def text_leaf(self,idx):
+  return self.lst[idx].text
+
+ def endText_leaf(self,idx):
+  return ''
+
+ def whitespace(self,idx):
+  self.fnl(idx)
+  return ''
+
+ def endWhitespace(self,idx):
+  return ''
+
+ def form(self,idx):
+  self.fnl(idx)
+  return ''
+
+ def endForm(self,idx):
+  return ''
+
+ def section(self,idx):
+  self.nl(idx)
+  return ''
+
+ def endSection(self,idx):
+  return ''
+
+ def document(self,idx):
+  self.nl(idx)
+  return ''
+
+ def endDocument(self,idx):
+  return ''
+
+ def link(self,idx):
+  log("link")
+  self.nl(idx)
+  return '{} '+self.lst[idx].text
+
+ def endLink(self,idx):
+  return self.nl(idx)
+
  def dialog(self,idx):
-  return self.lst[idx].name
+  return self.lst[idx].text
 
  def endDialog(self,idx):
   self.fnl(idx)
@@ -513,41 +645,74 @@ class accParser(parser):
 
  def pagetab(self,idx):
   self.fnl(idx)
-  return "tab %s" % (self.lst[idx].name,)
+  return "tab %s" % (self.lst[idx].text,)
 
  def endPagetab(self,idx):
   self.fnl(idx)
   return ''
 
+ def password_text(self,idx):
+  self.fnl(idx)
+  t=""
+  e=self.lst[idx]
+  if e.childCount>0:
+   t="*"*len(e.text)
+  return "[%s]" % (t,)
+
+ def endPassword_text(self,idx):
+  self.fnl(idx)
+  return ''
+
  def entry(self,idx):
   self.fnl(idx)
-  return self.lst[idx].value
+  return "[%s]" % (self.handleTextContainer(idx),)
 
  def endEntry(self,idx):
   self.fnl(idx)
   return ''
 
- def label(self,idx):
+ def handleTextContainer(self,idx,useTopText=False):
   ch=self.getChildren(idx)
   if ch and ch[0].role=="text leaf":
    self.skip=self.SKIP_CHILDREN
-   return ch[0].name
-  return self.lst[idx].name
+   return "".join([i.text for i in ch])
+  if useTopText:
+   return self.lst[idx].text
+  return ''
+
+ def label(self,idx):
+  self.fnl(idx)
+  return self.handleTextContainer(idx)
 
  def endLabel(self,idx):
   self.fnl(idx)
   return ''
 
+ def radiobutton(self,idx):
+  checked="+" if "checked" in self.lst[idx].states else "-"
+  return "[%s%s]" % (checked,self.handleTextContainer(idx,True),)
+
+ def endRadiobutton(self,idx):
+  self.fnl(idx)
+  return ''
+
+ checkbox=checkbutton=radiobutton
+ endCheckbox=endCheckbutton=endRadiobutton
+
  def pushbutton(self,idx):
   self.fnl(idx)
-  return "{} button "+self.lst[idx].name
+  return "[*%s]" % (self.handleTextContainer(idx,True),)
 
  def endPushbutton(self,idx):
   self.fnl(idx)
   return ''
 
  def unknown(self,idx):
-  return ''
+  n=self.lst[idx]
+  role=n.role if n.role else "no_role"
+  t=n.text if n.text else ''
+  self.nl(idx)
+  return "[%s] %s" % (role,t,)
 
  def endUnknown(self,idx):
   return ''

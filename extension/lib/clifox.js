@@ -345,6 +345,7 @@ clifoxJsonHandler.prototype = {
     QueryInterface: XPCOMUtils.generateQI([Ci.nsISupports]),
     writeReal: function(t, l) {
         l = l ? l : t.length;
+//console.error("l:"+l+" t.length:"+t.length);
 //error("write:","|"+t+"|");
         this.out.writeString(t, l);
         this.out.writeString("\n", 1);

@@ -1,6 +1,6 @@
 #!/bin/bash
 root=$(pwd)
-arch=$(uname -m)
+arch=$(uname -m | sed 's/x86_64/linux64/ig')
 ffpath="./ff/firefox"
 read -t10 -p "warning. this install will remove all saved firefox settings from your profile. This includes all thunderbird messages, firefox favorites, etc. You have ten seconds to cancel this install.
 continue (c-c to abort):"
@@ -19,7 +19,8 @@ mkdir -p ff/nightly
 cd ff/nightly
 if [ ! -f "firefox.nightly.tar.bz2" ]
 then
-path=$(wget -q -O- "http://nightly.mozilla.org/" | python -c 'import sys,re;print "\n".join(re.findall(r"\"(.*://.*bz2)\"",sys.stdin.read()))' | grep -i $(uname -m))
+path=$(wget -q -O- "http://nightly.mozilla.org/" | python -c 'import sys,re;print "\n".join(re.findall(r"\"(.*://.*bz2)\"",sys.stdin.read()))' | grep -i $(uname -m) | head -n1)
+echo "$path"
 wget -q -O "firefox.nightly.tar.bz2" "$path"
 fi
 bzcat firefox.nightly.tar.bz2 | tar -xf -
@@ -33,13 +34,10 @@ cd ff
 tf=$(ls -1 *.tar | grep -i tar)
 if [ $? != 0 ]
 then
-path="ftp://ftp.mozilla.org/pub/firefox/releases/latest/linux-$arch/en-US/"
-wget --no-remove-listing "$path"
-fn=`cat ./.listing | tr '\r' '\n' | rev | cut -d ' ' -f 1 | rev | grep -i bz2`
-rm "./.listing"
-fullfn="$path$fn"
+path="https://download.mozilla.org/?product=firefox-latest&os=$arch&lang=en-US"
+fn="firefox.tar.bz2"
 rm ./*
-wget "$fullfn"
+wget -O "$fn" "$path"
 bunzip2 *.bz2
 fi
 tar -xf *.tar
@@ -116,7 +114,7 @@ if [ ! -x ~/.clifox/clifox.conf ]
 then
 cp "$root/conf/clifox.conf" ~/.clifox/
 fi
-echo "running firefox. mozrepl should display a message to this console with its listening status.
+echo "running firefox.
 You can leave firefox running in the background, or c-c this copy and run it in another terminal."
-xvfb-run $ffpath/firefox
+./run
 

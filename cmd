@@ -4,7 +4,7 @@ sys.setdefaultencoding("utf-8")
 import utils
 import mozCom
 hostname="localhost"
-a=mozCom.initCliFox(hostname=hostname if len(sys.argv)<2 else sys.argv[1],q=Queue.Queue())
+a=mozCom.initCliFox(hostname=hostname if len(sys.argv)<3 else sys.argv[1],q=Queue.Queue())
 #print a
 root,q=a
 #print root.ref.eval("z=clifox.listAllTabs()[0];zz=clifox.selectTab(z);zz.toString()")
@@ -13,7 +13,7 @@ root,q=a
 #print root.ref.eval('clifox.map["j4"].name')
 #print root.clifox.selectTab(root.z)
 #print root.ref.eval("clifox.map.toString();for(i in clifox.map){i;};")
-print root.ref.eval(sys.argv[2].encode('utf-8'))
+print root.ref.eval(sys.argv[1].encode('utf-8'))
 sys.exit(0)
 l=[i for i in root.clifox.listAllTabs()]
 print l[0],l[0]['$clifox'],l[0].ref.id

@@ -1,5 +1,6 @@
 #!/usr/bin/python
 #main browser file (url fetcher, GUI wrapper, main window thread)
+import json
 import sys
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -836,7 +837,7 @@ used, e.g. when reading a webpage as a whole document.
 
  def moveWindow(self,direction=1,id=None):
 #~~
-  log("moveWindow")
+  log("moveWindow","direction",direction,"id",id)
   self.saveWindow()
   _id=id
   id=self.windex
@@ -853,8 +854,9 @@ used, e.g. when reading a webpage as a whole document.
   if _id!=None:
    id=_id
   self.windex=id
+  log("id:",id)
   p=tabs[id]
-#  log("tab",p['$clifox'])
+  log("tab",p['$clifox'])
   self.js.clifox.selectTab(p)
 #self.js.gBrowser.selectedTab=p
 #  log("keys",self.js.Object.keys(self.js.clifox.map).toString())
@@ -910,7 +912,8 @@ used, e.g. when reading a webpage as a whole document.
     self.newWindow(getattr(self,"start_url",config.get("homepage","http://bmcginty.hopto.org/form.html")))
    else:
     wid=self.js.clifox.listAllTabs().indexOf(self.page)
-    self.moveWindow(id=wid)
+#~~
+    self.moveWindow(id=wid if wid > -1 else 0)
     self.restoreWindow(self.page)
   while 1:
    time.sleep(0.01)

@@ -1,3 +1,8 @@
+var reallyInit;
+reallyInit=false;
+if(!clifox.listAllTabs) {
+reallyInit=true;
+}
 Cc = Components.classes;
 Cr = Components.results;
 Cu = Components.utils;
@@ -66,7 +71,7 @@ w.mo=null;
 } catch(e) {
 };
     w.mo = new w.MutationObserver(clifox.notifyMutations);
-w.mo.window=w
+w.mo.window=w;
 //clifox.note("w.mo",w.mo,"w.document",w.document);
     w.mo.observe(w.document, {
         "childList": 1,
@@ -239,7 +244,9 @@ try {
     }
 tabs=clifox.listAllTabs();
 for(i=0;i<tabs.length;i++) {
+if(tabs[i].linkedBrowser.contentWindow) {
 clifox.onDocumentCreate(tabs[i].linkedBrowser.contentWindow);
+}
 }
 };
 clifox.GuiListener.prototype = {
@@ -256,6 +263,7 @@ try {
         }
 tabs=clifox.listAllTabs();
 for(i=0;i<tabs.length;i++) {
+clifox.note("shutdownObsFor:"+i+":"+tabs[i].toString());
 clifox.onWindowDestroy(tabs[i].linkedBrowser.contentDocument.defaultView);
 }
     },
@@ -416,6 +424,7 @@ clifox.accObserver=function() {
 this.ar=Cc["@mozilla.org/accessibleRetrieval;1"].getService(Ci.nsIAccessibleRetrieval);
 };
 clifox.accObserver.prototype={
+  QueryInterface: XPCOMUtils.generateQI([Ci.nsISupports, Ci.nsIObserver]),
 kill:function() {
 this.obs.removeObserver(this,"accessible-event",false);
 },
@@ -423,7 +432,8 @@ this.obs.removeObserver(this,"accessible-event",false);
 var e,t;
 e=aSubject.QueryInterface(Ci.nsIAccessibleEvent);
 t=this.ar.getStringEventType(e.eventType);
-clifox.note("acc:"+t);
+dump("accEvent:"+t+"\n");
+//clifox.note("acc:"+t);
 },
 };
 clifox.observer = function() {
@@ -456,29 +466,34 @@ var o;
 };
 
 clifox.accNode=function(node) {
-if(!this.ar) {
-this.ar=Cc["@mozilla.org/accessibleRetrieval;1"].getService(Ci.nsIAccessibleRetrieval);
+if(!clifox.ar) {
+clifox.ar=Cc["@mozilla.org/accessibleRetrieval;1"].getService(Ci.nsIAccessibleRetrieval);
 }
-return this.ar.getAccessibleFor(node);
+return clifox.ar.getAccessibleFor(node);
 };
-clifox.accView = function(aDocument) {
-    function getAccessibleDoc(doc) {
-        this.ar = Cc["@mozilla.org/accessibleRetrieval;1"].getService(Ci.nsIAccessibleRetrieval);
-        this.ad = this.ar.getAccessibleFor(doc);
-        return ad;
-    };
-
-    function getStates(aNode) {
+clifox.accGetStates=function(aNode) {
         var d, e, ss, ret, i;
         d = {};
         e = {};
         ret = [];
         aNode.getState(d, e);
-        ss = this.ar.getStringStates(d.value, e.value);
+        ss = clifox.ar.getStringStates(d.value, e.value);
         for (i = 0; i < ss.length; i++) {
             ret.push(ss.item(i));
         }
         return ret;
+    };
+clifox.accView = function(aDocument) {
+    function getAccessibleDoc(doc) {
+var ad;
+if(!clifox.ar) {
+        clifox.ar = Cc["@mozilla.org/accessibleRetrieval;1"].getService(Ci.nsIAccessibleRetrieval);
+}
+        ad = clifox.ar.getAccessibleFor(doc);
+while(ad.parent) {
+ad=ad.parent;
+}
+        return ad;
     };
 
     function visit(aNode, l) {
@@ -499,6 +514,9 @@ var e;
         n = aNode;
         while (n && (i == 0 || n != root)) {
             i += 1;
+if(i>=10000) {
+break;
+}
             l.push([n, num]);
             try {
                 if (n.firstChild) {
@@ -533,19 +551,34 @@ var e;
     };
 
     function serialize(aList, ret) {
-        var i, n, role, states, text, num;
+        var i, n, role, states, text, attrs, num,pos,posLevel,posItemOf,posItemNo,attrsEnum,attrTemp,getStates,getStringRole;
+getStates=clifox.accGetStates;
+getStringRole=clifox.ar.getStringRole;
+posLevel={};
+posItemOf={};
+posItemNo={};
         for (i = 0; i < aList.length; i++) {
             n = aList[i];
             num = n[1];
             n = n[0];
-            role = this.ar.getStringRole(n.role);
+            role = getStringRole(n.role);
             states = getStates(n);
+n.groupPosition(posLevel,posItemOf,posItemNo);
+pos=[posLevel.value,posItemOf.value,posItemNo.value];
+attrs={};
+if(n.attributes) {
+attrsEnum=n.attributes.enumerate();
+while (attrsEnum.hasMoreElements()) {
+attrTemp = attrsEnum.getNext().QueryInterface(Ci.nsIPropertyElement);
+attrs[attrTemp.key] = attrTemp.value;
+}
+}
             if (role == "document" || role == "text leaf" || role == "statictext" || role == "text container" || !n.childCount) {
                 text = n.name;
             } else {
                 text = "";
             }
-            ret.push([clifox.justAddMap(n), num, role, states, text]);
+            ret.push([clifox.justAddMap(n), num, role, states, text,pos,attrs]);
         }
     }
     var aDoc, l, ret;
@@ -763,4 +796,8 @@ clifox.accObs=new clifox.accObserver();
         clifox.fm = Cc["@mozilla.org/focus-manager;1"].getService(Ci.nsIFocusManager);
     }
 };
+if(reallyInit==true) {
 clifox.init();
+clifox.note("initinit");
+}
+

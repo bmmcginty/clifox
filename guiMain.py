@@ -1,4 +1,4 @@
-import os,curses,mozCom,utils,re,unidecode
+import os,curses,mozCom,utils,re,unidecode,json
 from utils import log,generate_error_report
 import configParser
 config=configParser.config
@@ -286,13 +286,13 @@ class gui(forms):
   lv=0
   self.js.tmp=root
   res=self.js.ref.eval('clifox.accView(tmp)')
-  log("res:",res)
+  log("res:",json.dumps(res,indent=0))
   ii=-1
   jm=self.js.ref.map
   jr=self.js.ref.rMap
   for i in res:
    ii+=1
-   vars={"text":i[-1],"num":i[1],"role":i[2],"states":i[3]}
+   vars={"attributes":i[-1],"pos":i[-2],"text":"" if not i[-3] else i[-3],"num":i[1],"role":i[2],"states":i[3]}
    id=i[0]
    jc=mozCom.JSClass(root=self.js,name=str(ii),id=id,vars=vars)
    jm[id]=jc
@@ -382,16 +382,32 @@ class gui(forms):
   [nodes.append((0,i)) for i in parents if i.nodeName!="#text"]
   return nodes
 
- def paintScreen(self,dirty=None):
+ def paintScreen(self,dirty=None,acc=True):
 #  log("paintScreen")
   self.nidx=-1
   w=self.maxx
   self.y,self.x=0,0
 #  log("nodes from doc:"+str(self.dom.document))
   try:
-   nodes=self.iterNodes(self.dom.document)
-   self.parser=contentParser.htmlParser(nodes,self.maxx)
-   self._display=self.parser.parse()
+   if not acc:
+    nodes=self.iterNodes(self.dom.document)
+    self.parser=contentParser.htmlParser(nodes,self.maxx)
+    self._display=self.parser.parse()
+   else:
+    log("starting acc pull")
+    ta=time.time()
+    nodes=self.getAcc(self.dom.document)
+    tb=time.time()
+    log("getAcc:",tb-ta)
+    tc=time.time()
+    self.parser=contentParser.accParser(nodes,self.maxx)
+    td=time.time()
+    log("initParser:",td-tc)
+    te=time.time()
+    self._display=self.parser.parse()
+    tf=time.time()
+    log("parser.parse:",tf-te)
+    log("total for acc:",tf-ta)
    self.numLines=max(self._display.keys())
   except Exception,e:
    utils.generate_error_report()

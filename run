@@ -6,10 +6,10 @@ echo "You will have no garuntee of confidentiality, security, or privacy while u
 echo "We have attempted to insure that code from this browser will not leak into any other browsers on your machine, but we can not absolutely insure this."
 echo "Please press enter to continue using this application, or press control-c to exit."
 read
-if [ -e "`pwd`/ff/firefox/firefox" ]
+if [ -e "`pwd`/ff/nightly/firefox/firefox" ]
 then
-echo "Using local copy of firefox at \"`pwd`/ff/firefox/firefox\""
-ff="`pwd`/ff/firefox/firefox"
+echo "Using local copy of firefox at \"`pwd`/ff/nightly/firefox/firefox\""
+ff="`pwd`/ff/nightly/firefox/firefox"
 ffcode="0"
 else
 ff="$(which firefox)"
@@ -22,7 +22,7 @@ fi
 if [ "$ffcode" == "0" ]
 then
 cd extension
-xvfb-run -w 0 cfx -b "${ff}" run >../firefox.log 2>&1 &
+xvfb-run -w 0 jpm -v -b "${ff}" run > "`pwd`/firefox.log" 2>&1 &
 pid=$!
 echo "running xvfb and firefox with pid ${pid}"
 else
